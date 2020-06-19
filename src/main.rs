@@ -1,35 +1,43 @@
-use las::{Writer, Write, Color, Builder, Transform, Vector, Point as LPoint};
+use las::{Writer, Write, Color, Builder, Transform, Vector};
 use std::{io::BufWriter, fs::OpenOptions};
 use rand::prelude::*;
+use petgraph::{Graph, graph::NodeIndex};
 
 mod point;
-use point::Point;
-
+mod frame;
+use point::{Point, DataPoint};
+use frame::NodeType::{self, *};
 
 const NB_LONERS : u64 = 16;
 
-fn populate_frame(position:Point, nb_arms:u32, vec:&mut Vec<LPoint>) {
+fn populate_frame(center:Point, nb_arms:u32, frame:&mut Graph<DataPoint<NodeType>, ()>) {
     // push root
-    vec.push(position.with_color(Color::new(u16::MAX, 0, 0)));
+    let root_id = frame.add_node(DataPoint::from_point(center, Root));
 
     // populate arms
     let angle_step = (2f64 * std::f64::consts::PI) / (nb_arms as f64);
     let mut arm_angle = 0f64;
     for _ in 0..nb_arms {
-        populate_arm(position, arm_angle, vec);
+        populate_arm(root_id, arm_angle, frame);
         arm_angle += angle_step;
     }
 
     // get galaxy radius == max of distances from the root
-    let galaxy_radius = vec.iter().map(|p| p.x*p.x + p.y*p.y).fold(0.0, |a:f64,b| a.max(b)).sqrt();
+    let galaxy_radius = frame.node_indices()
+        .map(|ip| {
+            let p = frame[ip].point;
+            p.x*p.x + p.y*p.y
+        })
+        .fold(0.0, |a:f64,b| a.max(b))
+        .sqrt();
 
     // populate loners
     for _ in 0..NB_LONERS {
-        let angle = rand::thread_rng().gen_range(0f64, 2.0 * std::f64::consts::PI);
-        let dist = rand::thread_rng().gen_range(0f64, galaxy_radius);
+        let angle = thread_rng().gen_range(0f64, 2.0 * std::f64::consts::PI);
+        let dist = thread_rng().gen_range(0f64, galaxy_radius);
 
-        let loner_point = Point::polar(dist, angle);
-        vec.push(loner_point.with_color(Color::new(0, 0, u16::MAX)))
+        let loner_point = DataPoint::polar(dist, angle, Loner);
+        frame.add_node(loner_point);
     }
 }
 
@@ -37,63 +45,64 @@ const SLOPE : f64 = std::f64::consts::PI / 8f64;
 const ARM_POINTS : u64 = 8;
 const ARM_BONE_LENGTH : f64 = 16f64;
 
-fn populate_arm(mut position:Point, mut arm_angle:f64, vec:&mut Vec<LPoint>) {
+fn populate_arm(mut root_id:NodeIndex<u32>, mut arm_angle:f64, frame:&mut Graph<DataPoint<NodeType>, ()>) {
+    
+    let mut position = frame[root_id].point;
+
     for i in 1..=ARM_POINTS {
         let new_position = position + Point::polar(ARM_BONE_LENGTH, arm_angle);
 
-        vec.push(new_position.with_color(Color::new(u16::MAX, 0, 0)));
-        populate_ext(new_position, i, (new_position - position).normalize(), vec);
+        let arm_id = frame.add_node(new_position.with_data(Arm));
+        frame.add_edge(root_id, arm_id, ());
+        populate_ext(arm_id, i, (new_position - position).normalize(), frame);
 
         position = new_position;
         arm_angle += SLOPE;
+        root_id = arm_id;
     }
 }
 
+fn populate_ext(arm_id:NodeIndex<u32>, iteration:u64, direction:Point, frame: &mut Graph<DataPoint<NodeType>, ()>) {
+    let position = frame[arm_id].point;
 
-fn populate_ext(position:Point, iteration:u64, direction:Point, vec: &mut Vec<LPoint>) {
     // take a 2D normal of our direction vector
     let normale = direction.minusb_a() * iteration as f64 * ARM_BONE_LENGTH / 8f64;
-    let color = Color::new(u16::MAX, u16::MAX, 0);
 
     // add 2 arms, at +normal and -normal offset from the starting point
-    vec.push((position + normale).with_color(color));
-    vec.push((position - normale).with_color(color))
+    let ext1 = frame.add_node((position + normale).with_data(Ext));
+    let ext2 = frame.add_node((position - normale).with_data(Ext));
+    frame.add_edge(arm_id, ext1, ());
+    frame.add_edge(arm_id, ext2, ());
 }
 
 const SYSTEM_CLOUD_RADIUS : f64 = ARM_BONE_LENGTH;
-const SYSTEM_CLOUD_POPULATION : u64 = 32;
+const SYSTEM_CLOUD_POPULATION : u64 = 2;
 
-fn populate_systems(vec:Vec<LPoint>) -> Vec<LPoint> {
-    vec.into_iter().flat_map(|p| {
-        (0..=SYSTEM_CLOUD_POPULATION).into_iter().map(move |i| {
-            let p = p.clone();
+fn populate_systems(frame:&mut Graph<DataPoint<NodeType>, ()>) {
+    for i in frame.node_indices() {
 
-            let angle = rand::thread_rng().gen_range(0.0, 2.0 * std::f64::consts::PI);
-            let radius = rand::thread_rng().gen_range(0.0, SYSTEM_CLOUD_RADIUS);
+        let p = frame[i].point;
 
-            // 0 value is used to keep the generating point
-            if i == 0 {
-                p
-            } else {
-                let np : Point = Point::from(p) + Point::polar(radius, angle);
-                let gauss = (-np.dot(np) / 2000.0).exp();
-                LPoint {
-                    z: rand::thread_rng().gen_range(-16.0, 16.0) * gauss,
-                    ..np.with_color(Color::new(u16::MAX, 0, u16::MAX))
-                }
-            }
-        })
-    })
-    .collect()
+        for _ in 0..SYSTEM_CLOUD_POPULATION {
+            let angle = thread_rng().gen_range(0.0, 2.0 * std::f64::consts::PI);
+            let dist = thread_rng().gen_range(0.0, SYSTEM_CLOUD_RADIUS);
+
+            let np = Point::polar(dist, angle) + p;
+
+
+            let sys_id = frame.add_node(np.with_data(System));
+            frame.add_edge(i, sys_id, ());
+        }
+    }
 }
 
 fn main() {
     // create the skeleton points
-    let mut vec = Vec::new();
-    populate_frame(Point { x:0f64, y:0f64 }, 5, &mut vec);
+    let mut frame = Graph::new();
+    populate_frame(Point { x:0f64, y:0f64 }, 5, &mut frame);
 
     // add systems as little point clouds near every skeleton point
-    let vec = populate_systems(vec);
+    populate_systems(&mut frame);
 
     // open the result file
     let file = OpenOptions::new()
@@ -116,7 +125,13 @@ fn main() {
 
     // write points into the file
     let mut las_writer = Writer::new(buf_file, las_header).expect("Cannot create LAS writer");
-    for p in vec {
-        let _ = las_writer.write(p);
+    for p in frame.node_indices().map(|id| frame[id]) {
+        // 2000.0 is a self-tuned constant
+        // TODO: define the divisor from parameters like galaxy radius
+        let np = p.point;
+        let gauss = (-np.dot(np) / 2000.0).exp();
+        let z = thread_rng().gen_range(-16.0, 16.0) * gauss;
+
+        let _ = las_writer.write(p.map(Into::<Color>::into).to_lidar_with_z(z));
     }
 }

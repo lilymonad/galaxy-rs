@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 las = "0.7.1"
 rand = "0.7.3"
+petgraph = "0.5.1"

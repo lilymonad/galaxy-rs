@@ -7,11 +7,14 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn new(x:f64, y:f64) -> Self {
+        Point {
+            x,
+            y,
+        }
+    }
     pub fn polar(module:f64, radian:f64) -> Self {
-        (Point {
-            x: radian.cos(),
-            y: radian.sin(),
-        }) * module
+        Point::new(radian.cos(), radian.sin()) * module
     }
 
     /// dot product with another point
@@ -32,40 +35,35 @@ impl Point {
     /// These vectors verify the equality : v.u = 0
     /// And every two vector v and u verifying this are perpendicular
     pub fn minusb_a(self) -> Self {
-        Point { x: -self.y, y: self.x, ..self }
+        Point { x: -self.y, y: self.x }
     }
 
-    pub fn with_color(self, color:Color) -> LPoint {
-        LPoint {
-            color: Some(color),
-            ..self.into()
-        }
+    pub fn with_data<T>(self, data:T) -> DataPoint<T> {
+        DataPoint::new(self.x, self.y, data)
     }
 }
 
-impl Into<LPoint> for Point {
+impl Into<LPoint> for DataPoint<Color> {
     fn into(self) -> LPoint {
         LPoint {
-            x: self.x,
-            y: self.y,
+            x: self.point.x,
+            y: self.point.y,
             z: 0f64,
+            color: Some(self.data),
             ..Default::default()
         }
     }
 }
 
-impl From<LPoint> for Point {
-    fn from(rhs:LPoint) -> Point {
-        Point {
-            x: rhs.x,
-            y: rhs.y,
-        }
+impl From<LPoint> for DataPoint<Color> {
+    fn from(rhs:LPoint) -> Self {
+        Self::new(rhs.x, rhs.y, rhs.color.unwrap_or_default())
     }
 }
 
 impl std::ops::Mul<f64> for Point {
     type Output = Point;
-    fn mul(self, rhs:f64) -> Point {
+    fn mul(self, rhs:f64) -> Self::Output {
         Point {
             x: self.x * rhs,
             y: self.y * rhs,
@@ -75,7 +73,7 @@ impl std::ops::Mul<f64> for Point {
 
 impl std::ops::Div<f64> for Point {
     type Output = Point;
-    fn div(self, rhs:f64) -> Point {
+    fn div(self, rhs:f64) -> Self::Output {
         Point {
             x: self.x / rhs,
             y: self.y / rhs,
@@ -86,7 +84,7 @@ impl std::ops::Div<f64> for Point {
 impl std::ops::Add<Point> for Point {
     type Output = Point;
 
-    fn add(self, rhs:Point) -> Point {
+    fn add(self, rhs:Point) -> Self::Output {
         Point {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
@@ -96,10 +94,65 @@ impl std::ops::Add<Point> for Point {
 
 impl std::ops::Sub<Point> for Point {
     type Output = Point;
-    fn sub(self, rhs:Point) -> Point {
+    fn sub(self, rhs:Point) -> Self::Output {
         Point {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DataPoint<T> {
+    pub point: Point,
+    pub data: T,
+}
+
+impl<T> DataPoint<T> {
+    pub fn new(x:f64, y:f64, data:T) -> Self {
+        Self::from_point(Point::new(x, y), data)
+    }
+
+    pub fn polar(r:f64, theta:f64, data:T) -> Self {
+        Self::from_point(Point::polar(r, theta), data)
+    }
+
+    pub fn from_point(point:Point, data:T) -> Self {
+        Self {
+            point,
+            data,
+        }
+    }
+
+    pub fn map<F, U>(self, f:F) -> DataPoint<U>
+        where F : FnOnce(T) -> U,
+    {
+        DataPoint {
+            point: self.point,
+            data: f(self.data),
+        }
+    }
+}
+
+impl DataPoint<Color> {
+    pub fn to_lidar_with_z(self, z:f64) -> LPoint {
+        LPoint {
+            z,
+            ..self.into()
+        }
+    }
+}
+
+impl<T> std::ops::Deref for DataPoint<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.data
+    }
+}
+
+impl<T> std::ops::DerefMut for DataPoint<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.data
     }
 }
