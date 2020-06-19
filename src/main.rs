@@ -33,13 +33,13 @@ fn populate_frame(position:Point, nb_arms:u32, vec:&mut Vec<LPoint>) {
     }
 }
 
-const SLOPE : f64 = std::f64::consts::PI / 16f64;
+const SLOPE : f64 = std::f64::consts::PI / 8f64;
 const ARM_POINTS : u64 = 8;
-const ARM_POINT_DISTANCE : f64 = 16f64;
+const ARM_BONE_LENGTH : f64 = 16f64;
 
 fn populate_arm(mut position:Point, mut arm_angle:f64, vec:&mut Vec<LPoint>) {
     for i in 1..=ARM_POINTS {
-        let new_position = position + Point::polar(ARM_POINT_DISTANCE, arm_angle);
+        let new_position = position + Point::polar(ARM_BONE_LENGTH, arm_angle);
 
         vec.push(new_position.with_color(Color::new(u16::MAX, 0, 0)));
         populate_ext(new_position, i, (new_position - position).normalize(), vec);
@@ -49,9 +49,10 @@ fn populate_arm(mut position:Point, mut arm_angle:f64, vec:&mut Vec<LPoint>) {
     }
 }
 
+
 fn populate_ext(position:Point, iteration:u64, direction:Point, vec: &mut Vec<LPoint>) {
     // take a 2D normal of our direction vector
-    let normale = direction.minusb_a() * iteration as f64 * ARM_POINT_DISTANCE / 8f64;
+    let normale = direction.minusb_a() * iteration as f64 * ARM_BONE_LENGTH / 8f64;
     let color = Color::new(u16::MAX, u16::MAX, 0);
 
     // add 2 arms, at +normal and -normal offset from the starting point
@@ -59,11 +60,12 @@ fn populate_ext(position:Point, iteration:u64, direction:Point, vec: &mut Vec<LP
     vec.push((position - normale).with_color(color))
 }
 
-const SYSTEM_CLOUD_RADIUS : f64 = 8f64;
+const SYSTEM_CLOUD_RADIUS : f64 = ARM_BONE_LENGTH;
+const SYSTEM_CLOUD_POPULATION : u64 = 32;
 
 fn populate_systems(vec:Vec<LPoint>) -> Vec<LPoint> {
     vec.into_iter().flat_map(|p| {
-        (0..=8).into_iter().map(move |i| {
+        (0..=SYSTEM_CLOUD_POPULATION).into_iter().map(move |i| {
             let p = p.clone();
 
             let angle = rand::thread_rng().gen_range(0.0, 2.0 * std::f64::consts::PI);
@@ -74,7 +76,11 @@ fn populate_systems(vec:Vec<LPoint>) -> Vec<LPoint> {
                 p
             } else {
                 let np : Point = Point::from(p) + Point::polar(radius, angle);
-                np.with_color(Color::new(u16::MAX, 0, u16::MAX))
+                let gauss = (-np.dot(np) / 2000.0).exp();
+                LPoint {
+                    z: rand::thread_rng().gen_range(-16.0, 16.0) * gauss,
+                    ..np.with_color(Color::new(u16::MAX, 0, u16::MAX))
+                }
             }
         })
     })
@@ -84,7 +90,7 @@ fn populate_systems(vec:Vec<LPoint>) -> Vec<LPoint> {
 fn main() {
     // create the skeleton points
     let mut vec = Vec::new();
-    populate_frame(Point { x:0f64, y:0f64 }, 3, &mut vec);
+    populate_frame(Point { x:0f64, y:0f64 }, 5, &mut vec);
 
     // add systems as little point clouds near every skeleton point
     let vec = populate_systems(vec);

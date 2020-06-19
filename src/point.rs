@@ -7,7 +7,7 @@ pub struct Point {
 }
 
 impl Point {
-    pub fn polar(module:f64, radian:f64) -> Point {
+    pub fn polar(module:f64, radian:f64) -> Self {
         (Point {
             x: radian.cos(),
             y: radian.sin(),
@@ -20,7 +20,7 @@ impl Point {
     }
 
     /// Make the vector keep its direction, but have a distance of 1.0
-    pub fn normalize(self) -> Point {
+    pub fn normalize(self) -> Self {
         self / self.dot(self).sqrt()
     }
 
