@@ -39,6 +39,8 @@ fn populate_frame(center:Point, nb_arms:u32, frame:&mut Graph<DataPoint<NodeType
         let loner_point = DataPoint::polar(dist, angle, Loner);
         frame.add_node(loner_point);
     }
+
+    populate_cloud(frame)
 }
 
 const SLOPE : f64 = std::f64::consts::PI / 8f64;
@@ -78,7 +80,7 @@ fn populate_ext(arm_id:NodeIndex<u32>, iteration:u64, direction:Point, frame: &m
 const SYSTEM_CLOUD_RADIUS : f64 = ARM_BONE_LENGTH;
 const SYSTEM_CLOUD_POPULATION : u64 = 2;
 
-fn populate_systems(frame:&mut Graph<DataPoint<NodeType>, ()>) {
+fn populate_cloud(frame:&mut Graph<DataPoint<NodeType>, ()>) {
     for i in frame.node_indices() {
 
         let p = frame[i].point;
@@ -97,12 +99,9 @@ fn populate_systems(frame:&mut Graph<DataPoint<NodeType>, ()>) {
 }
 
 fn main() {
-    // create the skeleton points
+    // create the galaxy graph
     let mut frame = Graph::new();
     populate_frame(Point { x:0f64, y:0f64 }, 5, &mut frame);
-
-    // add systems as little point clouds near every skeleton point
-    populate_systems(&mut frame);
 
     // open the result file
     let file = OpenOptions::new()
@@ -123,7 +122,7 @@ fn main() {
     };
     let las_header = las_hd_builder.into_header().unwrap();
 
-    // write points into the file
+    // write points from the graph into the file
     let mut las_writer = Writer::new(buf_file, las_header).expect("Cannot create LAS writer");
     for p in frame.node_indices().map(|id| frame[id]) {
         // 2000.0 is a self-tuned constant
