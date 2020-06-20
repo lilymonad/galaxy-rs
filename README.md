@@ -25,7 +25,7 @@ GalaxyBuilder::default()
     .slope_factor(0.4)   // factor for controling spiral slope decay
     .arm_slope(std::f64::consts::PI / 4.0) // initial slope angle of each arm
     .arm_width_factor(1.0 / 24.0)          // how wide the arm will expand
-    .populate(Point { x:0f64, y:0f64 }, &mut frame); // build the galaxy
+    .populate(Point { x:0f64, y:0f64 }, &mut galaxy); // build the galaxy
 ```
 
 This code generates a galaxy which will look like this:
