@@ -1,5 +1,3 @@
-use las::{Color, Point as LPoint};
-
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
     pub x:f64,
@@ -13,8 +11,8 @@ impl Point {
             y,
         }
     }
-    pub fn polar(module:f64, radian:f64) -> Self {
-        Point::new(radian.cos(), radian.sin()) * module
+    pub fn polar(r:f64, theta:f64) -> Self {
+        Point::new(theta.cos(), theta.sin()) * r
     }
 
     /// dot product with another point
@@ -24,7 +22,11 @@ impl Point {
 
     /// Make the vector keep its direction, but have a distance of 1.0
     pub fn normalize(self) -> Self {
-        self / self.dot(self).sqrt()
+        self / self.length()
+    }
+
+    pub fn length(self) -> f64 {
+        (self * self).sqrt()
     }
 
     /// Compute a vector normal to self using this rule:
@@ -43,23 +45,6 @@ impl Point {
     }
 }
 
-impl Into<LPoint> for DataPoint<Color> {
-    fn into(self) -> LPoint {
-        LPoint {
-            x: self.point.x,
-            y: self.point.y,
-            z: 0f64,
-            color: Some(self.data),
-            ..Default::default()
-        }
-    }
-}
-
-impl From<LPoint> for DataPoint<Color> {
-    fn from(rhs:LPoint) -> Self {
-        Self::new(rhs.x, rhs.y, rhs.color.unwrap_or_default())
-    }
-}
 
 impl std::ops::Mul<f64> for Point {
     type Output = Point;
@@ -102,6 +87,13 @@ impl std::ops::Sub<Point> for Point {
     }
 }
 
+impl std::ops::Mul<Point> for Point {
+    type Output = f64;
+    fn mul(self, rhs:Point) -> Self::Output {
+        self.dot(rhs)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct DataPoint<T> {
     pub point: Point,
@@ -134,14 +126,6 @@ impl<T> DataPoint<T> {
     }
 }
 
-impl DataPoint<Color> {
-    pub fn to_lidar_with_z(self, z:f64) -> LPoint {
-        LPoint {
-            z,
-            ..self.into()
-        }
-    }
-}
 
 impl<T> std::ops::Deref for DataPoint<T> {
     type Target = T;

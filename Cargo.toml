@@ -1,12 +1,18 @@
 [package]
-name = "galaxy"
+name = "galaxy-rs"
 version = "0.1.0"
 authors = ["iona <arthur.blanleuil@inria.fr>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+lidar = ["las_lib"]
 
 [dependencies]
-las = "0.7.1"
 rand = "0.7.3"
 petgraph = "0.5.1"
+
+las_lib = { package = "las", version = "0.7.1", optional = true }
+
+[[example]]
+name = "gen_las"
+crate-type = ["bin"]
