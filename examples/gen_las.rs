@@ -13,7 +13,7 @@ fn main() {
     // create the galaxy graph
     let mut frame = Graph::new();
     GalaxyBuilder::default()
-        .cloud_population(32)
+        .cloud_population(2)
         .nb_arms(5)
         .nb_arm_bones(32)
         .slope_factor(0.4)
