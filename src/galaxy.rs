@@ -1,4 +1,4 @@
-use petgraph::{Graph, graph::{NodeIndex, NodeIndices}, visit::EdgeRef};
+use petgraph::{Graph, graph::NodeIndex, visit::EdgeRef};
 use crate::point::{Point, DataPoint};
 use rand::prelude::*;
 
@@ -233,38 +233,8 @@ impl Galaxy {
     {
         self.graph.map(|_, dp| f(dp), |_, _| ())
     }
-}
 
-impl IntoIterator for Galaxy {
-    type Item = DataPoint<NodeType>;
-    type IntoIter = GalaxyPoints;
-
-    fn into_iter(self) -> GalaxyPoints {
-        GalaxyPoints::new(self.graph)
-    }
-}
-
-pub struct GalaxyPoints {
-    graph  : Graph<DataPoint<NodeType>, ()>,
-    points : NodeIndices<u32>,
-}
-
-impl GalaxyPoints {
-    fn new(graph:Graph<DataPoint<NodeType>, ()>) -> Self {
-        Self {
-            points : graph.node_indices(),
-            graph,
-        }
-    }
-}
-
-impl Iterator for GalaxyPoints {
-    type Item = DataPoint<NodeType>;
-
-    fn next(&mut self) -> Option<DataPoint<NodeType>> {
-        match self.points.next() {
-            Some(idx) => Some(self.graph[idx]),
-            None => None,
-        }
+    pub fn into_points<'a>(& 'a self) -> impl Iterator<Item=DataPoint<NodeType>> + 'a {
+        self.graph.raw_nodes().into_iter().map(|n| n.weight)
     }
 }

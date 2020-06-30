@@ -42,7 +42,7 @@ fn main() {
 
     // write points from the graph into the file
     let mut las_writer = Writer::new(buf_file, las_header).expect("Cannot create LAS writer");
-    for p in frame {
+    for p in frame.into_points() {
         // 2000.0 is a self-tuned constant
         // TODO: define the divisor from parameters like galaxy radius
         let np = p.point;

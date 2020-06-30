@@ -1,6 +1,6 @@
 [package]
 name = "galaxy-rs"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["iona <arthur.blanleuil@inria.fr>"]
 edition = "2018"
 
