@@ -6,20 +6,20 @@
 use las_lib::{Writer, Write, Color, Builder, Transform, Vector};
 use std::{io::BufWriter, fs::OpenOptions};
 use rand::prelude::*;
-use petgraph::Graph;
 use galaxy_rs::{GalaxyBuilder, Point};
 
 fn main() {
     // create the galaxy graph
-    let mut frame = Graph::new();
-    GalaxyBuilder::default()
+    let frame = GalaxyBuilder::default()
         .cloud_population(2)
+        .cloud_radius(4.0)
         .nb_arms(5)
         .nb_arm_bones(32)
         .slope_factor(0.4)
         .arm_slope(std::f64::consts::PI / 4.0)
         .arm_width_factor(1.0 / 24.0)
-        .populate(Point { x:0f64, y:0f64 }, &mut frame);
+        .min_distance(Some(2.0))
+        .build(Point { x:0f64, y:0f64 }).unwrap();
 
     // open the result file
     let file = OpenOptions::new()
@@ -42,7 +42,7 @@ fn main() {
 
     // write points from the graph into the file
     let mut las_writer = Writer::new(buf_file, las_header).expect("Cannot create LAS writer");
-    for p in frame.node_indices().map(|id| frame[id]) {
+    for p in frame {
         // 2000.0 is a self-tuned constant
         // TODO: define the divisor from parameters like galaxy radius
         let np = p.point;
