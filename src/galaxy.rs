@@ -1,6 +1,7 @@
 use petgraph::{Graph, graph::NodeIndex, visit::EdgeRef};
 use crate::point::{Point, DataPoint};
 use rand::prelude::*;
+use std::cell::{RefCell, RefMut};
 
 #[derive(Clone, Copy)]
 pub enum NodeType {
@@ -29,6 +30,7 @@ pub struct GalaxyBuilder {
     nb_arm_bones : u64,
     slope_factor : f64,
     min_distance : Option<f64>,
+    rng : RefCell<ThreadRng>,
 }
 
 macro_rules! setter {
@@ -43,6 +45,10 @@ macro_rules! setter {
 }
 
 impl GalaxyBuilder {
+
+    fn rng(&self) -> RefMut<ThreadRng> {
+        self.rng.borrow_mut()
+    }
 
     setter!{nb_arm_bones : u64}
     setter!{slope_factor : f64}
@@ -66,6 +72,8 @@ impl GalaxyBuilder {
     }
 
     pub fn build(&self, center:Point) -> Option<Galaxy> {
+
+        
 
         if let Some(dist) = self.min_distance {
             if dist > self.cloud_radius { return None }
@@ -99,8 +107,8 @@ impl GalaxyBuilder {
 
         // populate loners
         for _ in 0..self.nb_loners {
-            let angle = thread_rng().gen_range(0f64, 2.0 * std::f64::consts::PI);
-            let dist = thread_rng().gen_range(0f64, galaxy_radius);
+            let angle = self.rng().gen_range(0f64, 2.0 * std::f64::consts::PI);
+            let dist = self.rng().gen_range(0f64, galaxy_radius);
 
             let loner_point = DataPoint::polar(dist, angle, Loner);
             self.add_node(loner_point, &mut graph);
@@ -166,15 +174,15 @@ impl GalaxyBuilder {
     }
 
     fn populate_cloud(&self, frame:&mut Graph<DataPoint<NodeType>, EdgeType>) {
-
+        
         let min_distance = self.min_distance.unwrap_or(0.0);
         for i in frame.node_indices() {
 
             let p = frame[i].point;
 
             'generate: for _ in 0..self.cloud_population {
-                let angle = thread_rng().gen_range(0.0, 2.0 * std::f64::consts::PI);
-                let dist = thread_rng().gen_range(min_distance, self.cloud_radius);
+                let angle = self.rng().gen_range(0.0, 2.0 * std::f64::consts::PI);
+                let dist = self.rng().gen_range(min_distance, self.cloud_radius);
                 let np = p + Point::polar(dist, angle);
 
                 if self.min_distance.is_some() {
@@ -215,6 +223,7 @@ impl Default for GalaxyBuilder {
             cloud_radius : 16.0,
             cloud_population : 2,
             slope_factor : 0.90,
+            rng : RefCell::new(thread_rng()),
         }
     }
 }
@@ -236,5 +245,9 @@ impl Galaxy {
 
     pub fn into_points<'a>(& 'a self) -> impl Iterator<Item=DataPoint<NodeType>> + 'a {
         self.graph.raw_nodes().into_iter().map(|n| n.weight)
+    }
+
+    pub fn points<'a>(& 'a self) -> impl Iterator<Item=& 'a DataPoint<NodeType>> + 'a {
+        self.graph.raw_nodes().iter().map(|n| &n.weight)
     }
 }
