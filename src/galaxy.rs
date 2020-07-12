@@ -237,8 +237,8 @@ impl Galaxy {
         self.graph
     }
 
-    pub fn into_mapped<F, E>(self, f:F) -> Graph<E, ()>
-        where F : Fn(&DataPoint<NodeType>) -> E,
+    pub fn into_mapped<'a, F, E>(& 'a self, f:F) -> Graph<E, ()>
+        where F : Fn(& 'a DataPoint<NodeType>) -> E,
     {
         self.graph.map(|_, dp| f(dp), |_, _| ())
     }
